@@ -123,7 +123,7 @@ void display(byte t1[16][16])
         if (bright > 255) bright = 255; 
 #endif
 #ifdef ADJCOLOR
-        xhue += nCount * 10; // 10 degrees of color rotation per neighbor
+        xhue += nCount * 40; // 40 degrees of color rotation per neighbor
         if (xhue >= 360) xhue -= 360;
 #endif
         hsv2rgb(xhue,255,255,&r,&g,&b,bright);
