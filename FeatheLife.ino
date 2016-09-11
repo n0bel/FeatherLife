@@ -23,6 +23,9 @@
 #define MAXBLANK 10           // Maximum number of blank cycles before restarting
 #define MAXSTATIC 10          // Maximum number of cycles that are exactly the same before restarting
 
+#define ADJBRIGHT             // Adjust Brightness based on neighbor count
+#define ADJCOLOR              // Adjust Color based on neighbor count
+
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 void hsv2rgb(unsigned int hue, unsigned int sat, unsigned int val, \
@@ -113,9 +116,17 @@ void display(byte t1[16][16])
       {
         newBuffer[j*Width+i] = 1;
         byte r, g, b;
-        unsigned int bright = 10 + 1 << nCount; // 2^nCount makes the scaling logrithmic, so the eye can see the differences
+        unsigned int bright = 150;
+        unsigned int xhue = hue;
+#ifdef ADJBRIGHT
+        bright = 10 + 1 << nCount; // 2^nCount makes the scaling logrithmic, so the eye can see the differences
         if (bright > 255) bright = 255; 
-        hsv2rgb(hue,255,255,&r,&g,&b,bright);
+#endif
+#ifdef ADJCOLOR
+        hue += nCount * 10; // 10 degrees of color rotation per neighbor
+        if (hue >= 360) hue -= 360;
+#endif
+        hsv2rgb(xhue,255,255,&r,&g,&b,bright);
         c = pixels.Color(r,g,b);
       }
       else
