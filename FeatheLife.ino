@@ -31,7 +31,7 @@ unsigned char * r, unsigned char * g, unsigned char * b, unsigned char maxBright
 int idx=0;
 int noOfGeneration = 0;
 int iCount = 0;
-uint32_t color;
+unsigned int hue;
 int allOffCount = 0;  // tracking how many cycles all pixels are off
 int sameCount = 0;   // tracking how many cycles all pixels the same as the prior cycle
 byte sameBuffer[NUMPIXELS];  
@@ -70,9 +70,7 @@ void loop()
   {
     allOffCount = 0;
     sameCount = 0;
-    byte r, g, b;
-    hsv2rgb(random(360),255,255,&r,&g,&b,150);
-    color = pixels.Color(r,g,b);
+    hue = random(360);
     randomize(t1);   
     noOfGeneration = 0;     
     idx=0;
@@ -110,10 +108,15 @@ void display(byte t1[16][16])
   {
     for(j=0; j<Height; j++)
     {  
+      byte nCount = countNeighbors(t1,i,j);
       if (t1[i][j])
       {
         newBuffer[j*Width+i] = 1;
-        c = color;
+        byte r, g, b;
+        unsigned int bright = 10 + 1 << nCount; // 2^nCount makes the scaling logrithmic, so the eye can see the differences
+        if (bright > 255) bright = 255; 
+        hsv2rgb(hue,255,255,&r,&g,&b,bright);
+        c = pixels.Color(r,g,b);
       }
       else
       {
@@ -176,51 +179,8 @@ void compute_neighbouring_cells(byte t1[16][16],byte t2[16][16])   //To Re-visit
   {
     for(j=0;j<Height;j++)
     {
-      if((i==0)&&(j==0))
-      {
-        a=t1[i][j+1]+t1[i+1][j]+t1[i+1][j+1]+t1[i][Height-1]+t1[i+1][Height-1]+t1[Width-1][j]+t1[Width-1][j+1]+t1[Width-1][Height-1];
-      }
-
-      if((i!=0)&&(j!=0)&&(i!=(Width-1))&&(j!=(Height-1)))
-      {
-        a=t1[i-1][j-1]+t1[i-1][j]+t1[i-1][j+1]+t1[i][j+1]+t1[i+1][j+1]+t1[i+1][j]+t1[i+1][j-1]+t1[i][j-1];
-      }
+      a = countNeighbors(t1,i,j);
       
-      if((i==0)&&(j!=0)&&(j!=(Height-1)))
-      {
-        a=t1[i][j-1]+t1[i+1][j-1]+t1[i+1][j]+t1[i+1][j+1]+t1[i][j+1]+t1[Width-1][j-1]+t1[Width-1][j]+t1[Width-1][j+1];
-      }
-
-      if((i==0)&&(j==(Height-1)))
-      {
-        a=t1[i][j-1]+t1[i+1][j-1]+t1[i+1][j]+t1[i][0]+t1[i+1][0]+t1[Width-1][0]+t1[Width-1][j]+t1[Width-1][j-1];
-      }
-      
-      if((i==(Width-1))&&(j==0))
-      {
-        a=t1[i-1][j]+t1[i-1][j+1]+t1[i][j+1]+t1[i][Height-1]+t1[i-1][Height-1]+t1[0][j]+t1[0][j+1]+t1[0][Height-1];
-      }
-      
-      if((i==(Width-1))&&(j!=0)&&(j!=(Height-1)))
-      {
-        a=t1[i][j-1]+t1[i][j+1]+t1[i-1][j-1]+t1[i-1][j]+t1[i-1][j+1]+t1[0][j]+t1[0][j-1]+t1[0][j+1];
-      }
-      
-      if((i==(Width-1))&&(j==(Height-1)))
-      {
-        a=t1[i][j-1]+t1[i-1][j-1]+t1[i-1][j]+t1[0][j]+t1[0][j-1]+t1[i][0]+t1[i-1][0]+t1[0][0];
-      }
-
-      if((i!=0)&&(i!=(Width-1))&&(j==0))
-      {
-        a=t1[i-1][j]+t1[i-1][j+1]+t1[i][j+1]+t1[i+1][j+1]+t1[i+1][j]+t1[i][Height-1]+t1[i-1][Height-1]+t1[i+1][Height-1];
-      }
-
-      if((i!=0)&&(i!=(Width-1))&&(j==(Height-1)))
-      {
-        a=t1[i-1][j]+t1[i-1][j-1]+t1[i][j-1]+t1[i+1][j-1]+t1[i+1][j]+t1[i][0]+t1[i-1][0]+t1[i+1][0];
-      }
-
       if((t1[i][j]==0)&&(a==3)){t2[i][j]=1;}                   // populate if 3 neighours around it
       if((t1[i][j]==1)&&((a==2)||(a==3))){t2[i][j]=1;}         // stay alive if 2 or 3 neigbours around it
       if((t1[i][j]==1)&&((a==1)||(a==0)||(a>3))){t2[i][j]=0;}  // die if only one neighbour or over-crowding with 4 or more neighours
@@ -228,6 +188,56 @@ void compute_neighbouring_cells(byte t1[16][16],byte t2[16][16])   //To Re-visit
   }
 }
 
+
+byte countNeighbors(byte t1[16][16],byte i, byte j)
+{
+  byte a;
+  if((i==0)&&(j==0))
+  {
+    a=t1[i][j+1]+t1[i+1][j]+t1[i+1][j+1]+t1[i][Height-1]+t1[i+1][Height-1]+t1[Width-1][j]+t1[Width-1][j+1]+t1[Width-1][Height-1];
+  }
+
+  if((i!=0)&&(j!=0)&&(i!=(Width-1))&&(j!=(Height-1)))
+  {
+    a=t1[i-1][j-1]+t1[i-1][j]+t1[i-1][j+1]+t1[i][j+1]+t1[i+1][j+1]+t1[i+1][j]+t1[i+1][j-1]+t1[i][j-1];
+  }
+  
+  if((i==0)&&(j!=0)&&(j!=(Height-1)))
+  {
+    a=t1[i][j-1]+t1[i+1][j-1]+t1[i+1][j]+t1[i+1][j+1]+t1[i][j+1]+t1[Width-1][j-1]+t1[Width-1][j]+t1[Width-1][j+1];
+  }
+
+  if((i==0)&&(j==(Height-1)))
+  {
+    a=t1[i][j-1]+t1[i+1][j-1]+t1[i+1][j]+t1[i][0]+t1[i+1][0]+t1[Width-1][0]+t1[Width-1][j]+t1[Width-1][j-1];
+  }
+  
+  if((i==(Width-1))&&(j==0))
+  {
+    a=t1[i-1][j]+t1[i-1][j+1]+t1[i][j+1]+t1[i][Height-1]+t1[i-1][Height-1]+t1[0][j]+t1[0][j+1]+t1[0][Height-1];
+  }
+  
+  if((i==(Width-1))&&(j!=0)&&(j!=(Height-1)))
+  {
+    a=t1[i][j-1]+t1[i][j+1]+t1[i-1][j-1]+t1[i-1][j]+t1[i-1][j+1]+t1[0][j]+t1[0][j-1]+t1[0][j+1];
+  }
+  
+  if((i==(Width-1))&&(j==(Height-1)))
+  {
+    a=t1[i][j-1]+t1[i-1][j-1]+t1[i-1][j]+t1[0][j]+t1[0][j-1]+t1[i][0]+t1[i-1][0]+t1[0][0];
+  }
+
+  if((i!=0)&&(i!=(Width-1))&&(j==0))
+  {
+    a=t1[i-1][j]+t1[i-1][j+1]+t1[i][j+1]+t1[i+1][j+1]+t1[i+1][j]+t1[i][Height-1]+t1[i-1][Height-1]+t1[i+1][Height-1];
+  }
+
+  if((i!=0)&&(i!=(Width-1))&&(j==(Height-1)))
+  {
+    a=t1[i-1][j]+t1[i-1][j-1]+t1[i][j-1]+t1[i+1][j-1]+t1[i+1][j]+t1[i][0]+t1[i-1][0]+t1[i+1][0];
+  }
+  return a;
+}
 
 
 //**********************************************************************************************************************************************************
